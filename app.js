@@ -1,58 +1,64 @@
-const express = require("express");
-const app = express();
-const rp = require("request-promise");
+const axios = require("axios");
 const cheerio = require("cheerio");
 const bodyParser = require("body-parser");
+const express = require("express");
+
+const app = express();
 
 app.use(bodyParser.json());
 
-/*
-get the url and scrapping the webpage
-*/
-const uriReq = (uri) => {
-  const options = {
-    uri,
-    transform: function (body) {
-      return cheerio.load(body);
-    },
-  };
-
-  rp(options)
-    .then(($) => {
-      console.log("###");
-      doStuff($);
+const getHTML = async (productURL) => {
+  const { data: html } = await axios
+    .get(productURL, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36",
+      },
     })
-    .catch(function (err) {
-      console.log(err);
+    .catch(function (error) {
+      console.log(error);
     });
+  return html;
 };
 
-const doStuff = async ($) => {
-  // const productTitle = $("#productTitle").text().trim();
-  // let price = $("#priceblock_ourprice").text();
-  // if (price.length === 0) {
-  //   price = $(".priceBlockStrikePriceString").text();
-  // }
-  // const dealPrice = $("#priceblock_dealprice").text();
-  // const save = $(".priceBlockSavingsString").text();
+const getAmazonTitle = async (html) => {
+  const $ = cheerio.load(html);
 
-  // return { productTitle, price, dealPrice, save };
-  const title = await $(".title").text().trim();
-  console.log(title);
+  const title = $("#productTitle");
 
-  return title;
+  return title.text().trim();
+};
+
+const getAmazonPrice = async (html) => {
+  const $ = cheerio.load(html);
+
+  let price = $("#priceblock_ourprice");
+  if (price.length === 0) {
+    price = $(".priceBlockStrikePriceString").text();
+  }
+
+  return price.text().trim();
+};
+
+const getAmazonDealPrice = async (html) => {
+  const $ = cheerio.load(html);
+
+  const dealPrice = $("#priceblock_dealprice");
+
+  return dealPrice.text().trim();
 };
 
 app.get("/api", (req, res) => {
   res.json({ message: "Welcome to Amazon Price Dropped 🏷" });
 });
 
-app.post("/api/uri", (req, res) => {
+app.post("/api/uri", async (req, res) => {
   const URI = req.body.uri;
-  const w = uriReq(URI);
-  console.log("w", w);
-
-  res.send(w);
+  const html = await getHTML(URI);
+  const title = await getAmazonTitle(html);
+  const price = await getAmazonPrice(html);
+  const dealPrice = await getAmazonDealPrice(html);
+  res.json({ title, price, dealPrice });
 });
 
 const port = process.env.PORT || 8000;
