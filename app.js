@@ -32,12 +32,15 @@ const getAmazonTitle = async (html) => {
 const getAmazonPrice = async (html) => {
   const $ = cheerio.load(html);
 
-  let price = $("#priceblock_ourprice");
+  let price = $("#priceblock_ourprice").text();
+
   if (price.length === 0) {
     price = $(".priceBlockStrikePriceString").text();
+  } else if (price.length === 0) {
+    price = $(".priceBlockDealPriceString").text();
   }
 
-  return price.text().trim();
+  return price;
 };
 
 const getAmazonDealPrice = async (html) => {
@@ -58,7 +61,12 @@ app.post("/api/uri", async (req, res) => {
   const title = await getAmazonTitle(html);
   const price = await getAmazonPrice(html);
   const dealPrice = await getAmazonDealPrice(html);
-  res.json({ title, price, dealPrice });
+  const response = JSON.stringify({
+    title,
+    price,
+    dealPrice,
+  });
+  res.json(response);
 });
 
 const port = process.env.PORT || 8000;
